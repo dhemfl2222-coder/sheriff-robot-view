@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sheriff Robot View</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #151d30;
+      --panel2: #101827;
+      --text: #e8eefc;
+      --muted: #9ba9c4;
+      --green: #32e875;
+      --red: #ff4b5c;
+      --yellow: #ffe66d;
+      --border: #2a3854;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at top, #182642 0%, var(--bg) 65%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      min-height: 100vh;
+    }
+    header {
+      padding: 22px clamp(16px, 4vw, 42px);
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .logo {
+      width: 44px; height:44px; display:grid; place-items:center;
+      border-radius:12px; background:#253653; border:1px solid #3a5077;
+      font-size:23px;
+    }
+    h1 { font-size: clamp(20px, 3vw, 28px); margin:0; letter-spacing:.02em; }
+    .subtitle { color:var(--muted); font-size:13px; margin-top:4px; }
+    .live-pill {
+      border:1px solid var(--border); border-radius:999px; padding:8px 12px;
+      color:var(--muted); font-size:12px; letter-spacing:.08em;
+    }
+    main { max-width:1400px; margin:0 auto; padding:24px clamp(12px, 3vw, 32px) 36px; }
+    .toolbar {
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px;
+    }
+    button {
+      cursor:pointer; border:1px solid var(--border); border-radius:10px;
+      padding:11px 16px; font-weight:700; color:var(--text); background:#202d46;
+      font-size:14px; transition:filter .15s, transform .15s;
+    }
+    button:hover { filter:brightness(1.15); }
+    button:active { transform:translateY(1px); }
+    button.primary { background:#176b42; border-color:#258b59; }
+    button.stop { background:#742b38; border-color:#a43d4c; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .hint { color:var(--muted); font-size:13px; margin-left:auto; }
+    .layout { display:grid; grid-template-columns:minmax(0, 1.7fr) minmax(300px, .8fr); gap:18px; }
+    .card {
+      background:linear-gradient(160deg, rgba(24,35,57,.98), rgba(15,23,39,.98));
+      border:1px solid var(--border); border-radius:16px; overflow:hidden;
+      box-shadow:0 18px 55px rgba(0,0,0,.22);
+    }
+    .card-head {
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      padding:15px 18px; border-bottom:1px solid var(--border);
+    }
+    .card-head h2 { font-size:15px; margin:0; letter-spacing:.06em; }
+    .small-status { font-size:12px; color:var(--muted); }
+    .video-stage { background:#05080e; position:relative; min-height:260px; }
+    #video, #overlay {
+      display:block; width:100%; height:auto; aspect-ratio:4 / 3; object-fit:contain;
+    }
+    #video { position:absolute; inset:0; opacity:0; pointer-events:none; }
+    #overlay { position:relative; }
+    .empty-state {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; gap:12px; text-align:center;
+      padding:24px; color:var(--muted);
+    }
+    .camera-icon { font-size:44px; opacity:.8; }
+    .side-content { padding:18px; }
+    .status-banner {
+      padding:13px 14px; border-radius:11px; border:1px solid var(--border);
+      background:#111a2a; display:flex; align-items:center; gap:10px; margin-bottom:18px;
+      font-weight:800; font-size:13px; letter-spacing:.04em;
+    }
+    .dot { width:10px; height:10px; border-radius:50%; background:#7b879c; flex:none; }
+    .status-banner.safe .dot { background:var(--green); box-shadow:0 0 12px #32e87588; }
+    .status-banner.warning .dot { background:var(--red); box-shadow:0 0 12px #ff4b5c88; }
+    .section-label { color:var(--muted); font-size:11px; letter-spacing:.13em; font-weight:800; margin:20px 0 10px; }
+    .metrics { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .metric {
+      background:var(--panel2); border:1px solid var(--border); border-radius:11px;
+      padding:13px; min-width:0;
+    }
+    .metric .label { color:var(--muted); font-size:12px; margin-bottom:7px; }
+    .metric .value { font-size:clamp(18px, 2vw, 25px); font-weight:800; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    .metric .unit { color:var(--muted); font-size:11px; margin-left:4px; font-weight:500; }
+    .wide { grid-column:1 / -1; }
+    .target-row {
+      display:flex; justify-content:space-between; gap:10px; padding:11px 0;
+      border-bottom:1px solid #25324a; font-size:13px;
+    }
+    .target-row:last-child { border-bottom:0; }
+    .target-row span:first-child { color:var(--muted); }
+    .target-row strong { font-variant-numeric:tabular-nums; text-align:right; }
+    .legend { display:flex; gap:14px; flex-wrap:wrap; color:var(--muted); font-size:12px; margin-top:14px; }
+    .legend span { display:flex; gap:6px; align-items:center; }
+    .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; }
+    .footnote { color:var(--muted); font-size:12px; line-height:1.6; margin-top:18px; }
+    .error { color:#ff9aa4; font-size:13px; line-height:1.5; margin-top:10px; white-space:pre-wrap; }
+    footer { text-align:center; color:#72819d; padding:0 16px 24px; font-size:12px; }
+    @media (max-width:850px) {
+      .layout { grid-template-columns:1fr; }
+      .hint { margin-left:0; width:100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">🎯</div>
+      <div>
+        <h1>SHERIFF ROBOT VIEW</h1>
+        <div class="subtitle">실시간 얼굴 검출 · 좌표 모니터링</div>
+      </div>
+    </div>
+    <div class="live-pill" id="topStatus">● SYSTEM STANDBY</div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <button class="primary" id="startBtn">▶ 웹캠 시작</button>
+      <button class="stop" id="stopBtn" disabled>■ 웹캠 종료</button>
+      <button id="resetBtn">좌표 초기화</button>
+      <span class="hint">카메라 권한을 허용해야 작동합니다.</span>
+    </div>
+
+    <div class="layout">
+      <section class="card">
+        <div class="card-head">
+          <h2>LIVE CAMERA</h2>
+          <span class="small-status" id="cameraStatus">카메라 연결 대기 중</span>
+        </div>
+        <div class="video-stage">
+          <video id="video" autoplay playsinline muted></video>
+          <canvas id="overlay" width="640" height="480"></canvas>
+          <div class="empty-state" id="emptyState">
+            <div class="camera-icon">📷</div>
+            <strong>웹캠이 시작되지 않았습니다.</strong>
+            <span>‘웹캠 시작’을 누르고 카메라 접근을 허용하세요.</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <div class="card-head">
+          <h2>TELEMETRY / 좌표 정보</h2>
+          <span class="small-status">실시간</span>
+        </div>
+        <div class="side-content">
+          <div class="status-banner" id="statusBanner">
+            <span class="dot"></span><span id="statusText">대기 중</span>
+          </div>
+
+          <div class="metrics">
+            <div class="metric">
+              <div class="label">검출 얼굴 수</div>
+              <div class="value" id="faceCount">0</div>
+            </div>
+            <div class="metric">
+              <div class="label">화면 크기</div>
+              <div class="value" style="font-size:18px" id="screenSize">640 × 480</div>
+            </div>
+            <div class="metric">
+              <div class="label">X 좌표</div>
+              <div class="value" id="xValue">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">Y 좌표</div>
+              <div class="value" id="yValue">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">중심 X</div>
+              <div class="value" id="cxValue">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">중심 Y</div>
+              <div class="value" id="cyValue">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">얼굴 너비 (W)</div>
+              <div class="value" id="wValue">—</div>
+            </div>
+            <div class="metric">
+              <div class="label">얼굴 높이 (H)</div>
+              <div class="value" id="hValue">—</div>
+            </div>
+            <div class="metric wide">
+              <div class="label">화면 너비 대비 얼굴 비율</div>
+              <div class="value" id="ratioValue">—</div>
+            </div>
+          </div>
+
+          <div class="section-label">TARGET DETAILS</div>
+          <div class="target-row"><span>추적 대상</span><strong id="targetName">없음</strong></div>
+          <div class="target-row"><span>경고 시작 기준</span><strong>40% 초과</strong></div>
+          <div class="target-row"><span>경고 해제 기준</span><strong>30% 미만</strong></div>
+          <div class="legend">
+            <span><i style="background:var(--green)"></i> 정상</span>
+            <span><i style="background:var(--red)"></i> 가까움 경고</span>
+          </div>
+          <div class="error" id="errorMsg" role="alert"></div>
+          <p class="footnote">
+            좌표는 카메라 영상의 픽셀 기준입니다. 얼굴이 가까운지 여부는 화면에서 차지하는 비율로 추정하며, 실제 거리를 측정하지 않습니다.
+            영상은 브라우저 안에서 처리되며 이 페이지는 영상을 서버로 전송하지 않습니다.
+          </p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer>Sheriff Robot View · 브라우저 카메라 권한이 필요합니다.</footer>
+
+  <script type="module">
+    import { FaceDetector, FilesetResolver }
+      from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("overlay");
+    const ctx = canvas.getContext("2d");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const emptyState = document.getElementById("emptyState");
+    const errorMsg = document.getElementById("errorMsg");
+
+    let stream = null;
+    let detector = null;
+    let running = false;
+    let animationId = null;
+    let lastVideoTime = -1;
+    let warningActive = false;
+    let smoothedBox = null;
+    let lastDetectionTime = 0;
+    let lastFace = null;
+
+    const WARN_ON = 0.40;
+    const WARN_OFF = 0.30;
+    const SMOOTHING = 0.35;
+    const LOST_FACE_RESET_MS = 900;
+
+    const $ = (id) => document.getElementById(id);
+    const setText = (id, value) => { $(id).textContent = value; };
+
+    async function createDetector() {
+      if (detector) return detector;
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+      );
+      detector = await FaceDetector.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath:
+            "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+          delegate: "GPU"
+        },
+        runningMode: "VIDEO",
+        minDetectionConfidence: 0.55
+      });
+      return detector;
+    }
+
+    function updateStatus(text, type = "") {
+      setText("statusText", text);
+      $("statusBanner").className = "status-banner" + (type ? " " + type : "");
+      $("topStatus").textContent = type === "safe" ? "● SYSTEM ACTIVE" :
+        type === "warning" ? "● PROXIMITY WARNING" : "● SYSTEM STANDBY";
+    }
+
+    function clearMetrics() {
+      ["xValue", "yValue", "cxValue", "cyValue", "wValue", "hValue", "ratioValue"]
+        .forEach(id => setText(id, "—"));
+      setText("faceCount", "0");
+      setText("targetName", "없음");
+    }
+
+    function drawLabel(text, x, y, color) {
+      ctx.font = "bold 16px system-ui, sans-serif";
+      const width = ctx.measureText(text).width + 18;
+      const labelY = Math.max(28, y);
+      ctx.fillStyle = color;
+      ctx.fillRect(x, labelY - 24, width, 28);
+      ctx.fillStyle = "#07101a";
+      ctx.fillText(text, x + 9, labelY - 5);
+    }
+
+    function renderFrame() {
+      if (!running) return;
+      if (video.readyState >= 2 && video.videoWidth > 0) {
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        if (canvas.width !== vw || canvas.height !== vh) {
+          canvas.width = vw;
+          canvas.height = vh;
+          setText("screenSize", `${vw} × ${vh}`);
+        }
+
+        // Mirror the camera view, like a mirror.
+        ctx.save();
+        ctx.clearRect(0, 0, vw, vh);
+        ctx.translate(vw, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, vw, vh);
+        ctx.restore();
+
+        if (video.currentTime !== lastVideoTime && detector) {
+          lastVideoTime = video.currentTime;
+          try {
+            const result = detector.detectForVideo(video, performance.now());
+            const detections = result.detections || [];
+            setText("faceCount", String(detections.length));
+
+            if (detections.length > 0) {
+              // Follow the largest detected face.
+              const face = detections.reduce((best, item) => {
+                const b = item.boundingBox;
+                const bb = best.boundingBox;
+                return b.width * b.height > bb.width * bb.height ? item : best;
+              });
+              const b = face.boundingBox;
+              const raw = {
+                x: (vw - (b.originX + b.width)),
+                y: b.originY,
+                w: b.width,
+                h: b.height
+              };
+
+              if (!smoothedBox) smoothedBox = { ...raw };
+              else {
+                for (const key of ["x", "y", "w", "h"]) {
+                  smoothedBox[key] += SMOOTHING * (raw[key] - smoothedBox[key]);
+                }
+              }
+
+              const x = Math.max(0, Math.round(smoothedBox.x));
+              const y = Math.max(0, Math.round(smoothedBox.y));
+              const w = Math.round(smoothedBox.w);
+              const h = Math.round(smoothedBox.h);
+              const cx = Math.round(x + w / 2);
+              const cy = Math.round(y + h / 2);
+              const ratio = w / vw;
+
+              // Hysteresis prevents rapid red/green flickering.
+              if (!warningActive && ratio > WARN_ON) warningActive = true;
+              else if (warningActive && ratio < WARN_OFF) warningActive = false;
+
+              const color = warningActive ? "#ff4b5c" : "#32e875";
+              const status = warningActive ? "WARNING: TOO CLOSE" : "TARGET LOCKED";
+
+              // Draw overlay in mirrored screen coordinates.
+              ctx.save();
+              ctx.translate(vw, 0);
+              ctx.scale(-1, 1);
+              ctx.strokeStyle = color;
+              ctx.lineWidth = Math.max(2, vw / 320);
+              ctx.strokeRect(vw - x - w, y, w, h);
+              ctx.beginPath();
+              ctx.moveTo(vw - cx - 20, cy);
+              ctx.lineTo(vw - cx + 20, cy);
+              ctx.moveTo(vw - cx, cy - 20);
+              ctx.lineTo(vw - cx, cy + 20);
+              ctx.stroke();
+              ctx.restore();
+
+              // Draw label in the same mirrored visual location.
+              drawLabel(status, Math.max(8, Math.min(vw - 245, vw - x - w)), y > 32 ? y : y + h + 28, color);
+
+              setText("xValue", x);
+              setText("yValue", y);
+              setText("cxValue", cx);
+              setText("cyValue", cy);
+              setText("wValue", w);
+              setText("hValue", h);
+              setText("ratioValue", `${(ratio * 100).toFixed(1)}%`);
+              setText("targetName", "가장 큰 얼굴");
+              updateStatus(status, warningActive ? "warning" : "safe");
+              setText("cameraStatus", "카메라 작동 중 · 얼굴 검출");
+              lastDetectionTime = performance.now();
+              lastFace = { x, y, w, h };
+            } else {
+              if (performance.now() - lastDetectionTime > LOST_FACE_RESET_MS) {
+                smoothedBox = null;
+                warningActive = false;
+                lastFace = null;
+                clearMetrics();
+                updateStatus("얼굴을 찾는 중");
+              } else if (lastFace && smoothedBox) {
+                // Briefly preserve the last box to reduce flicker during missed frames.
+                const { x, y, w, h } = lastFace;
+                ctx.strokeStyle = warningActive ? "#ff4b5c" : "#32e875";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([7, 6]);
+                ctx.strokeRect(x, y, w, h);
+                ctx.setLineDash([]);
+              }
+              setText("cameraStatus", "얼굴 검출 대기 중");
+              if (!lastFace) updateStatus("얼굴을 찾는 중");
+            }
+          } catch (err) {
+            errorMsg.textContent = "얼굴 인식 중 오류가 발생했습니다. 페이지를 새로고침해 다시 시도해 주세요.";
+            console.error(err);
+          }
+        }
+      }
+      animationId = requestAnimationFrame(renderFrame);
+    }
+
+    async function startCamera() {
+      errorMsg.textContent = "";
+      startBtn.disabled = true;
+      setText("cameraStatus", "얼굴 인식 모델 준비 중...");
+      try {
+        await createDetector();
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        running = true;
+        emptyState.style.display = "none";
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        setText("cameraStatus", "카메라 작동 중");
+        updateStatus("얼굴을 찾는 중");
+        animationId = requestAnimationFrame(renderFrame);
+      } catch (err) {
+        console.error(err);
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        const message = err.name === "NotAllowedError"
+          ? "카메라 권한이 거부됐습니다. 주소창 왼쪽 사이트 설정에서 카메라를 허용해 주세요."
+          : err.name === "NotFoundError"
+          ? "사용 가능한 카메라를 찾을 수 없습니다."
+          : "카메라 또는 얼굴 인식 모델을 시작하지 못했습니다. 인터넷 연결과 HTTPS 주소를 확인해 주세요.";
+        errorMsg.textContent = message;
+        setText("cameraStatus", "시작 실패");
+        updateStatus("시작할 수 없음");
+      }
+    }
+
+    function stopCamera() {
+      running = false;
+      if (animationId) cancelAnimationFrame(animationId);
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      stream = null;
+      video.srcObject = null;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      emptyState.style.display = "flex";
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      warningActive = false;
+      smoothedBox = null;
+      lastFace = null;
+      lastDetectionTime = 0;
+      clearMetrics();
+      setText("cameraStatus", "카메라 연결 대기 중");
+      updateStatus("대기 중");
+    }
+
+    startBtn.addEventListener("click", startCamera);
+    stopBtn.addEventListener("click", stopCamera);
+    resetBtn.addEventListener("click", () => {
+      warningActive = false;
+      smoothedBox = null;
+      lastFace = null;
+      lastDetectionTime = 0;
+      clearMetrics();
+      updateStatus(running ? "얼굴을 찾는 중" : "대기 중");
+    });
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      errorMsg.textContent = "이 브라우저에서 카메라 기능을 사용할 수 없습니다. GitHub Pages의 HTTPS 주소로 접속해 주세요.";
+      startBtn.disabled = true;
+    }
+  </script>
+</body>
+</html>
